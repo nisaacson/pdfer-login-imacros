@@ -10,10 +10,14 @@ runTests(function (err, reply) {
 });
 
 function runTests(cb) {
+  iimDisplay('running login tests');
   var filePath = 'file:///users/noah/src/node/pdfer-imacros/pdfer-login-imacros/test/localConfig.json'
   loadConfigFile(filePath, function (err, config) {
-    should.not.exist(err, 'error loading config file')
-    login(config, cb);
+    if (err) { return cb(err); }
+    login(config, function (err, reply) {
+      if (err) { return cb(err); }
+      login(config, cb);
+    });
   });
 }
 

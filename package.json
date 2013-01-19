@@ -1,6 +1,6 @@
 {
   "name": "pdfer-login-imacros",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Login to the pdfer service using iMacros for Firefox",
   "main": "index.js",
   "directories": {

@@ -3971,7 +3971,7 @@ require.define("/index.js",function(require,module,exports,__dirname,__filename,
  */
 module.exports = function(config, cb) {
   // clear all existing cookies and sessions
-  iimPlay('CODE: CLEAR');
+
   if (!config) {
     return cb('"config" parameter missing');
   }
@@ -3982,7 +3982,13 @@ module.exports = function(config, cb) {
   }
   var atPage = atLoginPage();
   if (!atPage) {
-    return cb('not at login page when we should be');
+    var logoutURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/logout';
+    code = iimPlay('CODE:URL GOTO=' +logoutURL);
+    code = iimPlay('CODE:URL GOTO='+loginURL);
+    atPage = atLoginPage();
+    if (!atPage) {
+      return cb('not at login page when we should be');
+    }
   }
   fillLogin(config, function (err, reply) {
     if (err) { return cb(err); }
@@ -4044,10 +4050,14 @@ runTests(function (err, reply) {
 });
 
 function runTests(cb) {
+  iimDisplay('running login tests');
   var filePath = 'file:///users/noah/src/node/pdfer-imacros/pdfer-login-imacros/test/localConfig.json'
   loadConfigFile(filePath, function (err, config) {
-    should.not.exist(err, 'error loading config file')
-    login(config, cb);
+    if (err) { return cb(err); }
+    login(config, function (err, reply) {
+      if (err) { return cb(err); }
+      login(config, cb);
+    });
   });
 }
 
