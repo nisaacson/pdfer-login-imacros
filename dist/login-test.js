@@ -3975,12 +3975,23 @@ module.exports = function(config, cb) {
   if (!config) {
     return cb('"config" parameter missing');
   }
+  var uploadURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/upload';
+  var code = iimPlay('CODE:URL GOTO='+uploadURL);
+  var atPage = atUploadPage();
+  if (atPage) {
+    var username = getUsername();
+    if (username === config.pdfer.username) {
+      iimDisplay('login already done');
+      return cb();
+    }
+  }
+
   var loginURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/login';
-  var code = iimPlay('CODE:URL GOTO='+loginURL);
+  code = iimPlay('CODE:URL GOTO='+loginURL);
   if (code !==1) {
     return cb('failed to login to pdfer service, imacros error: ' + iimGetLastError());
   }
-  var atPage = atLoginPage();
+  atPage = atLoginPage();
   if (!atPage) {
     var logoutURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/logout';
     code = iimPlay('CODE:URL GOTO=' +logoutURL);
@@ -4000,6 +4011,18 @@ module.exports = function(config, cb) {
   });
 }
 
+
+function getUsername() {
+  var code = iimPlay('CODE: TAG POS=1 TYPE=SPAN ATTR=ID:username EXTRACT=TXT');
+  if (code !== 1) {
+    return null;
+  }
+  var extract = iimGetLastExtract().trim();
+  if (extract === '#EANF#') {
+    return null;
+  }
+  return extract;
+}
 function fillLogin(config, cb) {
   var code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
                      + 'TAG POS=1 TYPE=INPUT:TEXT FORM=NAME:NoFormName ATTR=ID:id_username CONTENT='+config.pdfer.username);
@@ -4041,6 +4064,8 @@ function atUploadPage() {
 require.define("/test/login-test.js",function(require,module,exports,__dirname,__filename,process,global){var should = require('should');
 var readFile = require('imacros-read-file');
 var login = require('../index');
+
+iimPlay('CODE: URL GOTO=http://www.google.com');
 runTests(function (err, reply) {
   if (err) {
     alert('check test suite fails with error: ' + JSON.stringify(err));
@@ -4052,9 +4077,13 @@ runTests(function (err, reply) {
 function runTests(cb) {
   iimDisplay('running login tests');
   var filePath = 'file:///users/noah/src/node/pdfer-imacros/pdfer-login-imacros/test/localConfig.json'
+  iimDisplay('loading config file');
   loadConfigFile(filePath, function (err, config) {
+  iimDisplay('config file loaded');
     if (err) { return cb(err); }
+    iimDisplay('performing login');
     login(config, function (err, reply) {
+      iimDisplay('login complete');
       if (err) { return cb(err); }
       login(config, cb);
     });

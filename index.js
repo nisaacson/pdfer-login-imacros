@@ -7,12 +7,23 @@ module.exports = function(config, cb) {
   if (!config) {
     return cb('"config" parameter missing');
   }
+  var uploadURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/upload';
+  var code = iimPlay('CODE:URL GOTO='+uploadURL);
+  var atPage = atUploadPage();
+  if (atPage) {
+    var username = getUsername();
+    if (username === config.pdfer.username) {
+      iimDisplay('login already done');
+      return cb();
+    }
+  }
+
   var loginURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/login';
-  var code = iimPlay('CODE:URL GOTO='+loginURL);
+  code = iimPlay('CODE:URL GOTO='+loginURL);
   if (code !==1) {
     return cb('failed to login to pdfer service, imacros error: ' + iimGetLastError());
   }
-  var atPage = atLoginPage();
+  atPage = atLoginPage();
   if (!atPage) {
     var logoutURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/logout';
     code = iimPlay('CODE:URL GOTO=' +logoutURL);
@@ -32,6 +43,18 @@ module.exports = function(config, cb) {
   });
 }
 
+
+function getUsername() {
+  var code = iimPlay('CODE: TAG POS=1 TYPE=SPAN ATTR=ID:username EXTRACT=TXT');
+  if (code !== 1) {
+    return null;
+  }
+  var extract = iimGetLastExtract().trim();
+  if (extract === '#EANF#') {
+    return null;
+  }
+  return extract;
+}
 function fillLogin(config, cb) {
   var code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
                      + 'TAG POS=1 TYPE=INPUT:TEXT FORM=NAME:NoFormName ATTR=ID:id_username CONTENT='+config.pdfer.username);
