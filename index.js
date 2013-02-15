@@ -13,7 +13,6 @@ module.exports = function(config, cb) {
   if (atPage) {
     var username = getUsername();
     if (username === config.pdfer.username) {
-      iimDisplay('login already done');
       return cb();
     }
   }
@@ -41,7 +40,7 @@ module.exports = function(config, cb) {
     }
     cb();
   });
-}
+};
 
 
 function getUsername() {
@@ -68,7 +67,7 @@ function fillLogin(config, cb) {
     return cb('login failed, imacros error when filling in password field: ' + iimGetLastError());
   }
   code = iimPlay('CODE:SET !TIMEOUT_TAG 0\n'
-                 + 'TAG POS=1 TYPE=INPUT:SUBMIT FORM=NAME:NoFormName ATTR=*')
+                 + 'TAG POS=1 TYPE=INPUT:SUBMIT FORM=NAME:NoFormName ATTR=*');
   if (code !== 1) {
     return cb('login failed, imacros error when pressing submit button on login page: ' + iimGetLastError());
   }
