@@ -343,7 +343,7 @@ process.nextTick = (function () {
     ;
 
     if (canSetImmediate) {
-        return window.setImmediate;
+        return function (f) { return window.setImmediate(f) };
     }
 
     if (canPost) {
@@ -468,7 +468,7 @@ exports.not.exist = exports.not.exists = function(obj, msg){
 Object.defineProperty(Object.prototype, 'should', {
   set: function(){},
   get: function(){
-    return new Assertion(Object(this).valueOf());
+    return new Assertion(this.valueOf() == this ? this.valueOf() : this);
   },
   configurable: true
 });
@@ -697,7 +697,7 @@ Assertion.prototype = {
 
   equal: function(val, desc){
     this.assert(
-        val.valueOf() === this.obj
+        val === this.obj
       , function(){ return 'expected ' + this.inspect + ' to equal ' + i(val) + (desc ? " | " + desc : "") }
       , function(){ return 'expected ' + this.inspect + ' to not equal ' + i(val) + (desc ? " | " + desc : "") }
       , val);
@@ -747,7 +747,7 @@ Assertion.prototype = {
     this.assert(
         type == typeof this.obj
       , function(){ return 'expected ' + this.inspect + ' to be a ' + type + (desc ? " | " + desc : "") }
-      , function(){ return 'expected ' + this.inspect + ' not to be a ' + type  + (desc ? " | " + desc : "") }) 
+      , function(){ return 'expected ' + this.inspect + ' not to be a ' + type  + (desc ? " | " + desc : "") })
     return this;
   },
 
@@ -880,6 +880,7 @@ Assertion.prototype = {
         this.obj.hasOwnProperty(name)
       , function(){ return 'expected ' + this.inspect + ' to have own property ' + i(name) + (desc ? " | " + desc : "") }
       , function(){ return 'expected ' + this.inspect + ' to not have own property ' + i(name) + (desc ? " | " + desc : "") });
+    this.obj = this.obj[name];
     return this;
   },
 
@@ -1127,6 +1128,11 @@ Assertion.prototype = {
 });
 
 require.define("util",function(require,module,exports,__dirname,__filename,process,global){var events = require('events');
+
+exports.isArray = isArray;
+exports.isDate = function(obj){return Object.prototype.toString.call(obj) === '[object Date]'};
+exports.isRegExp = function(obj){return Object.prototype.toString.call(obj) === '[object RegExp]'};
+
 
 exports.print = function () {};
 exports.puts = function () {};
@@ -1484,6 +1490,13 @@ var isArray = typeof Array.isArray === 'function'
         return Object.prototype.toString.call(xs) === '[object Array]'
     }
 ;
+function indexOf (xs, x) {
+    if (xs.indexOf) return xs.indexOf(x);
+    for (var i = 0; i < xs.length; i++) {
+        if (x === xs[i]) return i;
+    }
+    return -1;
+}
 
 // By default EventEmitters will print a warning if more than
 // 10 listeners are added to it. This is a useful default which
@@ -1620,7 +1633,7 @@ EventEmitter.prototype.removeListener = function(type, listener) {
   var list = this._events[type];
 
   if (isArray(list)) {
-    var i = list.indexOf(listener);
+    var i = indexOf(list, listener);
     if (i < 0) return this;
     list.splice(i, 1);
     if (list.length == 0)
@@ -1736,16 +1749,18 @@ var Request = module.exports = function (xhr, params) {
     );
     
     if (params.headers) {
-        Object.keys(params.headers).forEach(function (key) {
+        var keys = objectKeys(params.headers);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
             if (!self.isSafeRequestHeader(key)) return;
             var value = params.headers[key];
-            if (Array.isArray(value)) {
-                value.forEach(function (v) {
-                    xhr.setRequestHeader(key, v);
-                });
+            if (isArray(value)) {
+                for (var j = 0; j < value.length; j++) {
+                    xhr.setRequestHeader(key, value[j]);
+                }
             }
             else xhr.setRequestHeader(key, value)
-        });
+        }
     }
     
     var res = new Response;
@@ -1765,8 +1780,7 @@ var Request = module.exports = function (xhr, params) {
 Request.prototype = new Stream;
 
 Request.prototype.setHeader = function (key, value) {
-    if ((Array.isArray && Array.isArray(value))
-    || value instanceof Array) {
+    if (isArray(value)) {
         for (var i = 0; i < value.length; i++) {
             this.xhr.setRequestHeader(key, value[i]);
         }
@@ -1818,7 +1832,25 @@ Request.unsafeHeaders = [
 
 Request.prototype.isSafeRequestHeader = function (headerName) {
     if (!headerName) return false;
-    return (Request.unsafeHeaders.indexOf(headerName.toLowerCase()) === -1)
+    return indexOf(Request.unsafeHeaders, headerName.toLowerCase()) === -1;
+};
+
+var objectKeys = Object.keys || function (obj) {
+    var keys = [];
+    for (var key in obj) keys.push(key);
+    return keys;
+};
+
+var isArray = Array.isArray || function (xs) {
+    return Object.prototype.toString.call(xs) === '[object Array]';
+};
+
+var indexOf = function (xs, x) {
+    if (xs.indexOf) return xs.indexOf(x);
+    for (var i = 0; i < xs.length; i++) {
+        if (xs[i] === x) return i;
+    }
+    return -1;
 };
 
 });
@@ -1971,8 +2003,8 @@ function parseHeaders (res) {
             var key = m[1].toLowerCase(), value = m[2];
             
             if (headers[key] !== undefined) {
-                if ((Array.isArray && Array.isArray(headers[key]))
-                || headers[key] instanceof Array) {
+            
+                if (isArray(headers[key])) {
                     headers[key].push(value);
                 }
                 else {
@@ -1991,7 +2023,7 @@ function parseHeaders (res) {
 }
 
 Response.prototype.getResponse = function (xhr) {
-    var respType = xhr.responseType.toLowerCase();
+    var respType = String(xhr.responseType).toLowerCase();
     if (respType === 'blob') return xhr.responseBlob;
     if (respType === 'arraybuffer') return xhr.response;
     return xhr.responseText;
@@ -2059,6 +2091,10 @@ Response.prototype._emitData = function (res) {
         this.emit('data', respBody.slice(this.offset));
         this.offset = respBody.length;
     }
+};
+
+var isArray = Array.isArray || function (xs) {
+    return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
 });
@@ -2719,6 +2755,17 @@ SlowBuffer.prototype.slice = function(start, end) {
   return new Buffer(this, end - start, +start);
 };
 
+SlowBuffer.prototype.copy = function(target, targetstart, sourcestart, sourceend) {
+  var temp = [];
+  for (var i=sourcestart; i<sourceend; i++) {
+    assert.ok(typeof this[i] !== 'undefined', "copying undefined buffer bytes!");
+    temp.push(this[i]);
+  }
+
+  for (var i=targetstart; i<targetstart+temp.length; i++) {
+    target[i] = temp[i-targetstart];
+  }
+};
 
 function coerce(length) {
   // Coerce length to a number (possibly NaN), round up
@@ -2812,6 +2859,35 @@ Buffer.isBuffer = function isBuffer(b) {
   return b instanceof Buffer || b instanceof SlowBuffer;
 };
 
+Buffer.concat = function (list, totalLength) {
+  if (!Array.isArray(list)) {
+    throw new Error("Usage: Buffer.concat(list, [totalLength])\n \
+      list should be an Array.");
+  }
+
+  if (list.length === 0) {
+    return new Buffer(0);
+  } else if (list.length === 1) {
+    return list[0];
+  }
+
+  if (typeof totalLength !== 'number') {
+    totalLength = 0;
+    for (var i = 0; i < list.length; i++) {
+      var buf = list[i];
+      totalLength += buf.length;
+    }
+  }
+
+  var buffer = new Buffer(totalLength);
+  var pos = 0;
+  for (var i = 0; i < list.length; i++) {
+    var buf = list[i];
+    buf.copy(buffer, pos);
+    pos += buf.length;
+  }
+  return buffer;
+};
 
 // Inspect
 Buffer.prototype.inspect = function inspect() {
@@ -3080,7 +3156,7 @@ Buffer.prototype.readUInt8 = function(offset, noAssert) {
         'Trying to read beyond buffer length');
   }
 
-  return buffer[offset];
+  return buffer.parent[buffer.offset + offset];
 };
 
 function readUInt16(buffer, offset, isBigEndian, noAssert) {
@@ -3099,11 +3175,11 @@ function readUInt16(buffer, offset, isBigEndian, noAssert) {
   }
 
   if (isBigEndian) {
-    val = buffer[offset] << 8;
-    val |= buffer[offset + 1];
+    val = buffer.parent[buffer.offset + offset] << 8;
+    val |= buffer.parent[buffer.offset + offset + 1];
   } else {
-    val = buffer[offset];
-    val |= buffer[offset + 1] << 8;
+    val = buffer.parent[buffer.offset + offset];
+    val |= buffer.parent[buffer.offset + offset + 1] << 8;
   }
 
   return val;
@@ -3132,15 +3208,15 @@ function readUInt32(buffer, offset, isBigEndian, noAssert) {
   }
 
   if (isBigEndian) {
-    val = buffer[offset + 1] << 16;
-    val |= buffer[offset + 2] << 8;
-    val |= buffer[offset + 3];
-    val = val + (buffer[offset] << 24 >>> 0);
+    val = buffer.parent[buffer.offset + offset + 1] << 16;
+    val |= buffer.parent[buffer.offset + offset + 2] << 8;
+    val |= buffer.parent[buffer.offset + offset + 3];
+    val = val + (buffer.parent[buffer.offset + offset] << 24 >>> 0);
   } else {
-    val = buffer[offset + 2] << 16;
-    val |= buffer[offset + 1] << 8;
-    val |= buffer[offset];
-    val = val + (buffer[offset + 3] << 24 >>> 0);
+    val = buffer.parent[buffer.offset + offset + 2] << 16;
+    val |= buffer.parent[buffer.offset + offset + 1] << 8;
+    val |= buffer.parent[buffer.offset + offset];
+    val = val + (buffer.parent[buffer.offset + offset + 3] << 24 >>> 0);
   }
 
   return val;
@@ -3212,12 +3288,12 @@ Buffer.prototype.readInt8 = function(offset, noAssert) {
         'Trying to read beyond buffer length');
   }
 
-  neg = buffer[offset] & 0x80;
+  neg = buffer.parent[buffer.offset + offset] & 0x80;
   if (!neg) {
-    return (buffer[offset]);
+    return (buffer.parent[buffer.offset + offset]);
   }
 
-  return ((0xff - buffer[offset] + 1) * -1);
+  return ((0xff - buffer.parent[buffer.offset + offset] + 1) * -1);
 };
 
 function readInt16(buffer, offset, isBigEndian, noAssert) {
@@ -3857,6 +3933,8 @@ require.define("/node_modules/should/lib/eql.js",function(require,module,exports
 
 module.exports = _deepEqual;
 
+var pSlice = Array.prototype.slice;
+
 function _deepEqual(actual, expected) {
   // 7.1. All identical values are equivalent, as determined by ===.
   if (actual === expected) {
@@ -3981,12 +4059,11 @@ module.exports = function(config, cb) {
   if (atPage) {
     var username = getUsername();
     if (username === config.pdfer.username) {
-      iimDisplay('login already done');
       return cb();
     }
   }
 
-  var loginURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/login';
+  var loginURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/login/api';
   code = iimPlay('CODE:URL GOTO='+loginURL);
   if (code !==1) {
     return cb('failed to login to pdfer service, imacros error: ' + iimGetLastError());
@@ -4009,7 +4086,7 @@ module.exports = function(config, cb) {
     }
     cb();
   });
-}
+};
 
 
 function getUsername() {
@@ -4025,18 +4102,20 @@ function getUsername() {
 }
 function fillLogin(config, cb) {
   var code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
-                     + 'TAG POS=1 TYPE=INPUT:TEXT FORM=NAME:NoFormName ATTR=ID:id_username CONTENT='+config.pdfer.username);
+                     + 'TAG POS=1 TYPE=INPUT:TEXT FORM=NAME:NoFormName ATTR=ID:id_email CONTENT='+config.pdfer.email);
   if (code !== 1) {
-    return cb('login failed, imacros error when filling in username field: ' + iimGetLastError());
+    return cb('login failed, imacros error when filling in email field: ' + iimGetLastError());
   }
 
+  var apiKey = config.pdfer.apiKey;
+  alert('apiKey: ' + apiKey);
   code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
-                 + 'TAG POS=1 TYPE=INPUT:PASSWORD FORM=NAME:NoFormName ATTR=ID:id_password CONTENT='+config.pdfer.password);
+                 + 'TAG POS=1 TYPE=INPUT:PASSWORD ATTR=ID:id_apiKey CONTENT=' + apiKey);
   if (code !== 1) {
     return cb('login failed, imacros error when filling in password field: ' + iimGetLastError());
   }
   code = iimPlay('CODE:SET !TIMEOUT_TAG 0\n'
-                 + 'TAG POS=1 TYPE=INPUT:SUBMIT FORM=NAME:NoFormName ATTR=*')
+                 + 'TAG POS=1 TYPE=INPUT:SUBMIT FORM=NAME:NoFormName ATTR=*');
   if (code !== 1) {
     return cb('login failed, imacros error when pressing submit button on login page: ' + iimGetLastError());
   }
@@ -4044,7 +4123,7 @@ function fillLogin(config, cb) {
 }
 function atLoginPage() {
   var code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
-                     + 'TAG POS=1 TYPE=LEGEND ATTR=TXT:Login');
+                     + 'TAG POS=1 TYPE=P ATTR=TXT:Use<SP>your<SP>username<SP>and<SP>api<SP>key<SP>to<SP>login')
   if (code === 1) {
     return true;
   }
@@ -4059,6 +4138,7 @@ function atUploadPage() {
   }
   return false;
 }
+
 });
 
 require.define("/test/login-test.js",function(require,module,exports,__dirname,__filename,process,global){var should = require('should');
@@ -4076,7 +4156,7 @@ runTests(function (err, reply) {
 
 function runTests(cb) {
   iimDisplay('running login tests');
-  var filePath = 'file:///users/noah/src/node/pdfer-imacros/pdfer-login-imacros/test/localConfig.json'
+  var filePath = 'file:///Users/noah/src/node/docparse/scraper/imacros/pdfer/login/test/config.json';
   iimDisplay('loading config file');
   loadConfigFile(filePath, function (err, config) {
   iimDisplay('config file loaded');

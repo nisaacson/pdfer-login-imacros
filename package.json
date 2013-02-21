@@ -1,6 +1,6 @@
 {
   "name": "pdfer-login-imacros",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Login to the pdfer service using iMacros for Firefox",
   "main": "index.js",
   "directories": {
@@ -23,7 +23,7 @@
   "readmeFilename": "README.md",
   "gitHead": "37fb3d5bdfb552898510136bb5886b1a2b44af3f",
   "dependencies": {
-    "should": "~1.2.1",
-    "imacros-read-file": "~1.0.0"
+    "imacros-read-file": "~1.0.0",
+    "should": "~1.2.2"
   }
 }

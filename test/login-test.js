@@ -13,7 +13,7 @@ runTests(function (err, reply) {
 
 function runTests(cb) {
   iimDisplay('running login tests');
-  var filePath = 'file:///users/noah/src/node/pdfer-imacros/pdfer-login-imacros/test/localConfig.json'
+  var filePath = 'file:///Users/noah/src/node/docparse/scraper/imacros/pdfer/login/test/config.json';
   iimDisplay('loading config file');
   loadConfigFile(filePath, function (err, config) {
   iimDisplay('config file loaded');

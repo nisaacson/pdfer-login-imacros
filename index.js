@@ -17,7 +17,7 @@ module.exports = function(config, cb) {
     }
   }
 
-  var loginURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/login';
+  var loginURL = 'http://'+config.pdfer.host + ':' + config.pdfer.port + '/login/api';
   code = iimPlay('CODE:URL GOTO='+loginURL);
   if (code !==1) {
     return cb('failed to login to pdfer service, imacros error: ' + iimGetLastError());
@@ -56,13 +56,15 @@ function getUsername() {
 }
 function fillLogin(config, cb) {
   var code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
-                     + 'TAG POS=1 TYPE=INPUT:TEXT FORM=NAME:NoFormName ATTR=ID:id_username CONTENT='+config.pdfer.username);
+                     + 'TAG POS=1 TYPE=INPUT:TEXT FORM=NAME:NoFormName ATTR=ID:id_email CONTENT='+config.pdfer.email);
   if (code !== 1) {
-    return cb('login failed, imacros error when filling in username field: ' + iimGetLastError());
+    return cb('login failed, imacros error when filling in email field: ' + iimGetLastError());
   }
 
+  var apiKey = config.pdfer.apiKey;
+  alert('apiKey: ' + apiKey);
   code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
-                 + 'TAG POS=1 TYPE=INPUT:PASSWORD FORM=NAME:NoFormName ATTR=ID:id_password CONTENT='+config.pdfer.password);
+                 + 'TAG POS=1 TYPE=INPUT:PASSWORD ATTR=ID:id_apiKey CONTENT=' + apiKey);
   if (code !== 1) {
     return cb('login failed, imacros error when filling in password field: ' + iimGetLastError());
   }
@@ -75,7 +77,7 @@ function fillLogin(config, cb) {
 }
 function atLoginPage() {
   var code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
-                     + 'TAG POS=1 TYPE=LEGEND ATTR=TXT:Login');
+                     + 'TAG POS=1 TYPE=P ATTR=TXT:Use<SP>your<SP>username<SP>and<SP>api<SP>key<SP>to<SP>login')
   if (code === 1) {
     return true;
   }
