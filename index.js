@@ -62,7 +62,6 @@ function fillLogin(config, cb) {
   }
 
   var apiKey = config.pdfer.apiKey;
-  alert('apiKey: ' + apiKey);
   code = iimPlay('CODE: SET !TIMEOUT_TAG 0\n'
                  + 'TAG POS=1 TYPE=INPUT:PASSWORD ATTR=ID:id_apiKey CONTENT=' + apiKey);
   if (code !== 1) {
