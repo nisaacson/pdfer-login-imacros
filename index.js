@@ -11,8 +11,8 @@ module.exports = function(config, cb) {
   var code = iimPlay('CODE:URL GOTO='+uploadURL);
   var atPage = atUploadPage();
   if (atPage) {
-    var username = getUsername();
-    if (username === config.pdfer.username) {
+    var email = getEmail();
+    if (email === config.pdfer.email) {
       return cb();
     }
   }
@@ -43,7 +43,7 @@ module.exports = function(config, cb) {
 };
 
 
-function getUsername() {
+function getEmail() {
   var code = iimPlay('CODE: TAG POS=1 TYPE=SPAN ATTR=ID:username EXTRACT=TXT');
   if (code !== 1) {
     return null;
